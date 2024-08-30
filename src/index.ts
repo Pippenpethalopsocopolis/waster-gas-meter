@@ -9,7 +9,7 @@ dotenv.config();
 const app = express();
 app.use(bodyParser.json());
 
-app.use('/api/measures', measureRoutes);
+app.use('/', measureRoutes);
 
 const PORT = process.env.PORT || 3000;
 

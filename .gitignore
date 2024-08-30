@@ -1,8 +1,5 @@
-# Node.js dependencies
 /node_modules
 
-# Build output
 /dist
 
-# Enviroment file
 .env

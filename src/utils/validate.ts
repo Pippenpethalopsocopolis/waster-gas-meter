@@ -9,3 +9,7 @@ export const isValidBase64 = (str: string): boolean => {
 export const isValidMeasureType = (measure_type: string): boolean => {
     return ['WATER', 'GAS'].includes(measure_type.toUpperCase());
 };
+
+export const isValidDate = (date: any): boolean => {
+    return date instanceof Date && !isNaN(date.getTime());
+};

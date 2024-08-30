@@ -1,27 +1,34 @@
 import { Request, Response } from 'express';
 
 import { addMeasure, confirmMeasure, findMeasuresByCustomerCode } from '../models/measureModel.js';
-import { isValidBase64, isValidMeasureType } from '../utils/validate.js';
+import { isValidBase64, isValidMeasureType, isValidDate } from '../utils/validate.js';
 
-export const uploadImage = (req: Request, res: Response): Response => {
+export const uploadImage = async (req: Request, res: Response): Promise<Response> => {
     const { image, customer_code, measure_datetime, measure_type } = req.body;
+    
+    const measureDate = new Date(measure_datetime);
+
+    /*  
+        Try and catch could be(actually should be) implemented from here
+        but beacause of I would need another return with response statement(typescript enforces it) I choose not to include try/catch
+        because I shouldn't give other responses other than you explicitly writed according to pdf you sent.
+    */
 
     // Validate the image and measure type
-    if (!isValidBase64(image) || !isValidMeasureType(measure_type)) {
+    if(!isValidBase64(image) || !isValidMeasureType(measure_type) || !isValidDate(measureDate) || typeof customer_code !== 'string') {
         return res.status(400).json({
             error_code: 'INVALID_DATA',
-            error_description: 'Invalid image data or measure type',
+            error_description: 'Invalid data. Check your image, measure_type, customer_code or measure_datetime values and try again.'
         });
     }
-    
-    try {
-        const newMeasure = addMeasure({
+    else{
+        const newMeasure = await addMeasure({
             customer_code,
-            measure_datetime: new Date(measure_datetime),
+            measure_datetime: measureDate,
             measure_type: measure_type.toUpperCase() as 'WATER' | 'GAS',
             measure_value: 0, // Placeholder for actual LLM reading
         }, image);
-
+    
         // Handle the result from addMeasure
         if (typeof newMeasure === 'string') {
             return res.status(409).json({
@@ -35,19 +42,13 @@ export const uploadImage = (req: Request, res: Response): Response => {
                 measure_uuid: newMeasure.measure_uuid,
             });
         }
-    } catch (err) {
-        console.error('Error saving the image file:', err);
-        return res.status(500).json({
-            error_code: 'SERVER_ERROR',
-            error_description: 'An error occurred while saving the image file.',
-        });
     }
 };
 
-export const confirmMeasureValue = (req: Request, res: Response): Response => {
+export const confirmMeasureValue = async (req: Request, res: Response): Promise<Response> => {
     const { measure_uuid, confirmed_value } = req.body;
 
-    const result = confirmMeasure(measure_uuid, confirmed_value);
+    const result = await confirmMeasure(measure_uuid, confirmed_value);
 
     // Check the error code and set the appropriate status
     if(typeof measure_uuid !== 'string' || typeof confirmed_value !== 'number') {
@@ -69,14 +70,19 @@ export const confirmMeasureValue = (req: Request, res: Response): Response => {
     }
 };
 
-export const listMeasures = (req: Request, res: Response): Response => {
+export const listMeasures = async (req: Request, res: Response): Promise<Response> => {
     const customer_code = req.params.customer_code;
     const measure_type = req.query.measure_type as string;
     
-    const measures = findMeasuresByCustomerCode(
-        customer_code,
-        measure_type ? (measure_type.toUpperCase() as 'WATER' | 'GAS') : undefined
-    );
+    const measures = await findMeasuresByCustomerCode(customer_code, measure_type ? (measure_type.toUpperCase() as 'WATER' | 'GAS') : undefined);
+    
+    // Since mysql cant hanlde booleans turn string true or false to boolean, save it as a new array
+    const transformedMeasures = measures.map(measure => {
+        return {
+            ...measure,
+            has_confirmed: measure.has_confirmed === 'true'
+        };
+    });
 
     if(measure_type && !isValidMeasureType(measure_type)) {
         return res.status(400).json({
@@ -91,6 +97,6 @@ export const listMeasures = (req: Request, res: Response): Response => {
         });
     }
     else{
-        return res.status(200).json({ customer_code, measures });
+        return res.status(200).json({ customer_code, measures: transformedMeasures });
     }
 };
