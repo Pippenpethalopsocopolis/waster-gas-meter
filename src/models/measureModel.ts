@@ -6,6 +6,7 @@ import { RowDataPacket } from 'mysql2';
 
 import { getGeminiResult } from '../gemini/api.js';
 import { connectionPool } from '../database/database.js';
+import { getMimeTypeFromBase64 } from '../utils/validate.js';
 
 export interface Measure {
     measure_uuid: string;
@@ -36,29 +37,37 @@ export const addMeasure = async (measure: Omit<Measure, 'measure_uuid' | 'has_co
     // Check if a measure already exists for the same customer, type, and month
     const connection = await connectionPool.getConnection();
     const [rows] = await connection.execute<RowDataPacket[]>('SELECT * FROM measures WHERE customer_code = ? AND measure_type = ? AND measure_datetime = ?', [measure.customer_code, measure.measure_type, newMeasureDate]);
-    console.log(rows.length);
 
     if(rows.length > 0) {
         connection.release();
         // Return an error message if a reading already exists
         return `A measure already exists for customer code ${measure.customer_code} in ${newYear}-${newMonth + 1} for ${measure.measure_type}.`;
     }
-    else{
+    else {
         const measure_uuid = uuidv4();
-
-        // Save the base64 image to a temporary file
-        const filename = `${measure_uuid}_${Date.now()}.png`;
-        const filepath = path.join(images, filename);
 
         // Decode base64 image and write to file
         const buffer = Buffer.from(image, 'base64');
+
+        // Find out mime type
+        const mime = getMimeTypeFromBase64(image);
+
+        // From mime find out extention, if undefined make it jpeg
+        const extention = mime.split('/') || 'jpeg';
+
+        // Save mime type as the extention of file
+        const filename = `${measure_uuid}_${Date.now()}.${extention[1]}`;
+
+        // Save the base64 image to a temporary file
+        const filepath = path.join(images, filename);
         await fs.promises.writeFile(filepath, buffer);
 
         // Create a temporary URL for the image
         const image_url = `/images/${filename}`;
 
-        const measureValueFromGemini = await getGeminiResult(filename, filepath);
+        const measureValueFromGemini = await getGeminiResult(filename, mime);
         measure.measure_value = measureValueFromGemini;
+
         // Create a new measure
         const newMeasure: Measure = {
             ...measure,
@@ -118,7 +127,7 @@ export const confirmMeasure = async (measure_uuid: string, confirmed_value: numb
         Below, instead of default "Leitura do mês já realizada", messages,I took liberty to improve it in sake of a clearer error message.
         It can be changed to default message by simply changing the string in error_description 's key
     */
-    console.log(measure?.measure_uuid);
+
     if(!measure) {
         return {
             error_code: 'MEASURE_NOT_FOUND',

@@ -14,7 +14,7 @@ export const uploadImage = async (req: Request, res: Response): Promise<Response
         because I shouldn't give other responses other than you explicitly writed according to pdf you sent.
     */
 
-    // Validate the image and measure type
+    // Validations
     if(!isValidBase64(image) || !isValidMeasureType(measure_type) || !isValidDate(measureDate) || typeof customer_code !== 'string') {
         return res.status(400).json({
             error_code: 'INVALID_DATA',
@@ -26,7 +26,7 @@ export const uploadImage = async (req: Request, res: Response): Promise<Response
             customer_code,
             measure_datetime: measureDate,
             measure_type: measure_type.toUpperCase() as 'WATER' | 'GAS',
-            measure_value: 0, // Placeholder for actual LLM reading
+            measure_value: 0,
         }, image);
     
         // Handle the result from addMeasure

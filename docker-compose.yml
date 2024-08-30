@@ -20,7 +20,7 @@ services:
     ports:
       - "3000:3000"
     environment:
-      - GEMINI_API_KEY= #put your api key here 
+      - GEMINI_API_KEY=AIzaSyDR3ZtQakj23Z-RYLxzJBMENYc48wbMPcQ #put your api key here 
       - PORT=3000 #ports can be changed. set it up according to your computer
       - DB_HOST=mysql
       - DB_PORT=3306 #ports can be changed. set it up according to your computer
