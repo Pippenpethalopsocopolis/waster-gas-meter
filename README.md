@@ -19,7 +19,7 @@ Request Body
 "measure_type": "WATER" or "GAS"
 }
 
-An sucesfull request will return a response like this,
+An succesfull request will return a response like this,
 { 
 “image_url”: string, 
 “measure_value”:integer, 
